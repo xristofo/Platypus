@@ -325,6 +325,55 @@ class GDE3(AbstractGeneticAlgorithm):
             
         self.evaluate_all(offspring)
         self.population = self.survival(offspring)
+
+class hNSDE(AbstractGeneticAlgorithm):
+    
+    def __init__(self, problem,
+                 population_size = 100,
+                 generator = RandomGenerator(),
+                 variator = DifferentialEvolution(),
+                 **kwargs):
+        super(GDE3, self).__init__(problem, population_size, generator, **kwargs)
+        self.variator = variator
+        self.dominance = ParetoDominance()
+        
+    def select(self, i, arity):
+        indices = []
+        indices.append(i)
+        indices.extend(random.sample(list(range(0, i)) + list(range(i+1, len(self.population))),
+                                     arity-1))
+        return operator.itemgetter(*indices)(self.population)
+    
+    def survival(self, offspring):
+        next_population = []
+        
+        for i in range(self.population_size):
+            flag = self.dominance.compare(offspring[i], self.population[i])
+            
+            if flag <= 0:
+                next_population.append(offspring[i])
+                
+            if flag >= 0:
+                next_population.append(self.population[i])
+                
+        nondominated_sort(next_population)
+        return nondominated_prune(next_population, self.population_size)
+    
+    def initialize(self):
+        super(GDE3, self).initialize()
+        
+        if self.variator is None:
+            self.variator = default_variator(self.problem)   
+           
+    def iterate(self):
+        offspring = []
+        
+        for i in range(self.population_size):
+            parents = self.select(i, self.variator.arity)
+            offspring.extend(self.variator.evolve(parents))
+            
+        self.evaluate_all(offspring)
+        self.population = self.survival(offspring)
         
 class SPEA2(AbstractGeneticAlgorithm):
      
